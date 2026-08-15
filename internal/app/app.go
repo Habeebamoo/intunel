@@ -12,12 +12,9 @@ import (
 	"github.com/Habeebamoo/intunel-backend/internal/configs"
 	"github.com/Habeebamoo/intunel-backend/internal/database"
 	"github.com/Habeebamoo/intunel-backend/internal/handlers"
-	"github.com/Habeebamoo/intunel-backend/internal/middlewares"
 	"github.com/Habeebamoo/intunel-backend/internal/queue"
 	"github.com/Habeebamoo/intunel-backend/internal/repositories"
 	"github.com/Habeebamoo/intunel-backend/internal/services"
-	"github.com/Habeebamoo/intunel-backend/internal/store"
-
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 )
@@ -59,31 +56,20 @@ func New() *App {
 	
 	router := gin.Default()
 
-	//middlewares
-	router.Use(middlewares.CORSMiddleware(cfg.FrontendUrl))
-
 	//repositories init
-	userRepo := repositories.NewUserRepository(db)
 	schedulerRepo := repositories.NewScheduledNotificationRepository(db)
 
-	//store init
-	stateStore := store.NewOAuthStateStore(redisClient)
-
 	// Services init
-	authService := services.NewAuthService(userRepo, cfg.JwtSecret)
 	producer := queue.NewProducer(redisClient)
 	notificationService := services.NewNotificationService(producer, schedulerRepo)
 
 	// Handlers init
-	authHandler := handlers.NewAuthHandler(authService, stateStore, cfg)
 	notificationHandler := handlers.NewNotificationHandler(notificationService)
 
 	// Routes
 	RegisterRoutes(
 		router, 
-		authHandler, 
 		notificationHandler, 
-		cfg.JwtSecret,
 	)
 
 	server := &http.Server{

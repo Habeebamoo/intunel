@@ -8,10 +8,7 @@ import (
 )
 
 func Migrate(db *gorm.DB) {
-	err := db.AutoMigrate(
-    &models.User{},
-    &models.ScheduledNotification{},
-	)
+	err := db.AutoMigrate(&models.ScheduledNotification{})
 
 	if err != nil {
 		log.Fatalf("migration failed: %v", err)

@@ -59,15 +59,10 @@ Responsible for accepting notification requests.
 
 Endpoints:
 
-* `POST /api/v1/notifications`
+* `POST /api/v1/notify`
 
   * validates incoming requests
   * publishes the notification to a Redis Stream
-* `GET /healthz`
-
-  * returns service health
-
----
 
 ### Worker Service
 
@@ -96,8 +91,6 @@ Responsibilities:
 * Tracks retry count per message in a Redis Hash (`notifications:retry:<msgID>`).
 * Deletes the hash key on success or after DLQ handoff.
 
----
-
 ### Scheduler
 
 Runs as a background goroutine inside the worker service alongside the consumer and reaper.
@@ -110,8 +103,6 @@ Responsibilities:
 * Marks each published notification as `queued` with a `published_at` timestamp.
 
 Scheduled notifications are stored in PostgreSQL rather than Redis to ensure durability across restarts. Once published to the stream they follow the same processing pipeline as immediate notifications including retry and DLQ support.
-
----
 
 ### PostgreSQL
 
@@ -127,8 +118,6 @@ Each scheduled notification stores:
 * `status` — `scheduled` → `queued`
 * `published_at` — when the scheduler published it to the stream
 
----
-
 ### Dead Letter Queue (DLQ)
 
 A separate Redis Stream (`notifications:stream:dead`) that holds messages which have exhausted all retry attempts.
@@ -139,8 +128,6 @@ Each DLQ entry stores:
 * `error` — exact error from the last failed attempt
 * `failed_at` — unix timestamp of final failure
 * `msg_id` — original stream message ID for traceability
-
----
 
 ### Redis Streams
 
@@ -153,8 +140,6 @@ Benefits:
 * Pending Entries List for reliability
 * Message acknowledgements (`XACK`)
 * Failed message recovery (`XCLAIM`/`XAUTOCLAIM` support)
-
----
 
 ### Email Provider
 
@@ -266,7 +251,7 @@ go run ./cmd/worker
 ## Example Request
 
 ```http
-POST /api/v1/notifications
+POST /api/v1/notify
 Content-Type: application/json
 ```
 
@@ -284,7 +269,7 @@ Content-Type: application/json
 ## Scheduled Notification Request
 
 ```http
-POST /api/v1/notifications
+POST /api/v1/notify
 Content-Type: application/json
 ```
 

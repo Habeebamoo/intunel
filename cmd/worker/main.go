@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -52,6 +53,15 @@ func main() {
 	go consumer.Start(ctx)
 	go reaper.Start(ctx)
 	go scheduler.Start(ctx)
+
+	//health check
+	go func() {
+		http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("OK"))
+		})
+		http.ListenAndServe(":"+os.Getenv("PORT"), nil)
+	}()
 
 	// Graceful shutdown
 	quit := make(chan os.Signal, 1)

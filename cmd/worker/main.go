@@ -54,13 +54,18 @@ func main() {
 	go reaper.Start(ctx)
 	go scheduler.Start(ctx)
 
+	PORT := os.Getenv("PORT")
+	if os.Getenv("ENV") == "development" {
+		PORT = "5000"
+	}
+
 	//health check
 	go func() {
 		http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte("OK"))
 		})
-		http.ListenAndServe(":"+os.Getenv("PORT"), nil)
+		http.ListenAndServe(":"+PORT, nil)
 	}()
 
 	// Graceful shutdown

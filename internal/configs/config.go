@@ -13,12 +13,6 @@ type Config struct {
 	RedisUrl                 string
 	PostgresUrl              string
 	ResendApiKey             string
-	GoogleClientID           string
-	GoogleClientSecret       string
-	GitHubClientID           string
-	GitHubClientSecret       string
-	FrontendUrl              string
-	JwtSecret                string
 }
 
 func Load() *Config {
@@ -49,11 +43,5 @@ func Load() *Config {
 		RedisUrl: 					      redisURL,
 		PostgresUrl:              os.Getenv("POSTGRES_URL"),
 		ResendApiKey: 					 	os.Getenv("RESEND_API_KEY"),
-		GoogleClientID:           os.Getenv("GOOGLE_CLIENT_ID"),
-		GoogleClientSecret:       os.Getenv("GOOGLE_CLIENT_SECRET"),
-		GitHubClientID:           os.Getenv("GITHUB_CLIENT_ID"),
-		GitHubClientSecret:       os.Getenv("GITHUB_CLIENT_SECRET"),
-		FrontendUrl:              os.Getenv("FRONTEND_URL"),
-		JwtSecret:                os.Getenv("JWT_SECRET"),
 	}
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/Habeebamoo/intunel-backend/internal/queue"
 	"github.com/Habeebamoo/intunel-backend/internal/repositories"
 	"github.com/Habeebamoo/intunel-backend/internal/services"
+	"github.com/Habeebamoo/intunel-backend/internal/store"
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 )
@@ -56,6 +57,9 @@ func New() *App {
 	
 	router := gin.Default()
 
+	//idempotent store
+	idempotencyStore := store.NewIdempotencyStore(redisClient)
+
 	//repositories init
 	schedulerRepo := repositories.NewScheduledNotificationRepository(db)
 
@@ -70,6 +74,7 @@ func New() *App {
 	RegisterRoutes(
 		router, 
 		notificationHandler, 
+		idempotencyStore,
 	)
 
 	server := &http.Server{

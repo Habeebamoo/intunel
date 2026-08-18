@@ -9,7 +9,7 @@ The service accepts notification requests through an HTTP API, publishes them to
 ```mermaid
 flowchart LR
     Client[Client]
-    API["Go API\nPOST /api/v1/notifications"]
+    API["Go API\nPOST /api/v1/notify"]
     Stream["Redis Stream"]
     Group["Consumer Group"]
     Worker["Notification Worker"]
@@ -149,6 +149,19 @@ Current provider:
 
 The email layer is isolated behind an interface, making it easy to replace or add providers in the future.
 
+### Idempotency
+
+Every `POST /api/v1/notify` request requires an `Idempotency-Key` header. This prevents duplicate notifications from being sent when a client retries a failed request.
+
+Each key is stored in Redis with a 24 hour TTL. If the same key is seen again within that window the cached response is returned immediately and the notification is not published to the stream again.
+
+```http
+POST /api/v1/notify
+Idempotency-Key: 550e8400-e29b-41d4-a716-446655440000
+```
+
+This is the same pattern used by Stripe, Paystack, and Adyen for safe request retries.
+
 ---
 
 ## Architecture Decisions
@@ -197,6 +210,14 @@ Retry state is stored in a Redis Hash per message with a 24 hour TTL as a safety
 ### Dead Letter Queue
 
 Messages that fail all 3 retry attempts are moved to a dedicated DLQ stream with the original payload and exact error reason preserved. This allows for future inspection, alerting, or manual replay without losing the message.
+
+### Idempotency
+
+Network failures can cause clients to retry requests, resulting in duplicate notifications. To prevent this, every notify request requires an `Idempotency-Key` header supplied by the caller.
+
+The key is stored in Redis after the first successful request alongside the response body. If the same key arrives again within 24 hours the middleware short-circuits the request chain with `c.Abort()` and returns the cached response — the handler and stream publisher never run.
+
+The 24 hour TTL balances safety with flexibility. A developer who genuinely wants to send the same notification to the same person the next day gets a fresh key and a fresh send.
 
 ### Scheduled Notifications
 
@@ -253,6 +274,7 @@ go run ./cmd/worker
 ```http
 POST /api/v1/notify
 Content-Type: application/json
+Idempotency-Key: 550e8400-e29b-41d4-a716-446655440000
 ```
 
 ```json
@@ -271,6 +293,7 @@ Content-Type: application/json
 ```http
 POST /api/v1/notify
 Content-Type: application/json
+Idempotency-Key: 550e8400-e29b-41d4-a716-446655440000
 ```
 
 ```json
@@ -343,6 +366,7 @@ flowchart TD
 * Redis Hash (retry state)
 * Dead Letter Queue pattern
 * PostgreSQL (scheduled notification storage)
+* Idempotency (Redis-backed request deduplication)
 * GORM
 * Goroutines
 * Channels

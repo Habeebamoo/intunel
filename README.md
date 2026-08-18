@@ -231,6 +231,8 @@ Once the scheduled time is reached the notification enters the standard stream p
 
 ## Running Locally
 
+> Live API: **https://intunel-api.onrender.com**
+
 ### Using Docker
 
 ```bash
@@ -269,10 +271,10 @@ go run ./cmd/worker
 
 ---
 
-## Example Request
+## API Request
 
 ```http
-POST /api/v1/notify
+POST https://intunel-api.onrender.com/api/v1/notify
 Content-Type: application/json
 Idempotency-Key: 550e8400-e29b-41d4-a716-446655440000
 ```
@@ -291,7 +293,7 @@ Idempotency-Key: 550e8400-e29b-41d4-a716-446655440000
 ## Scheduled Notification Request
 
 ```http
-POST /api/v1/notify
+POST https://intunel-api.onrender.com/api/v1/notify
 Content-Type: application/json
 Idempotency-Key: 550e8400-e29b-41d4-a716-446655440000
 ```

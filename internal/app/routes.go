@@ -20,7 +20,8 @@ func RegisterRoutes(
 	})
 
 	v1.POST("/notify", 
-		middlewares.IdempotencyMiddleware(idempotentStore), 
+		middlewares.RateLimiter(), 
+		middlewares.IdempotencyMiddleware(idempotentStore),
 		notificationHandler.SendNotification,
 	)
 }

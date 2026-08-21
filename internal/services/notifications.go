@@ -27,10 +27,6 @@ func NewNotificationService(producer *queue.Producer, scheduledRepo repositories
 }
 
 func (s *notificationService) SendNotification(ctx context.Context, n models.Notification) error {
-    if n.Channel == "" || n.To == "" || n.Body == "" {
-        return fmt.Errorf("channel, to, and body are required")
-    }
-
     // If date + time provided, it's a scheduled notification
     if n.Date != "" && n.Time != "" {
         scheduledAt, err := utils.ParseScheduledAt(n.Date, n.Time, n.Timezone)

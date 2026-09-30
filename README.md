@@ -122,10 +122,6 @@ go run ./cmd/api
 go run ./cmd/worker
 ```
 
-## API
-
-**Live API:** https://intunel-api.onrender.com
-
 ### Immediate Notification
 
 ```http

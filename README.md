@@ -99,6 +99,14 @@ Keys are stored in Redis for **24 hours**, preventing duplicate notifications wh
 docker compose up --build
 ```
 
+or
+
+```bash
+docker-compose up
+```
+
+<br><br>
+
 API:
 
 ```text

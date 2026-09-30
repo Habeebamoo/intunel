@@ -1,0 +1,18 @@
+version: '3.18'
+
+services:
+  api:
+    build: .
+    command: ./api
+    env_file:
+      - .env
+    restart: unless-stopped
+    network_mode: host
+  
+  worker:
+    build: .
+    command: ./worker
+    env_file:
+      - .env
+    restart: unless-stopped
+    network_mode: host

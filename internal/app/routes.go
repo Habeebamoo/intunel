@@ -24,4 +24,9 @@ func RegisterRoutes(
 		middlewares.IdempotencyMiddleware(idempotentStore),
 		notificationHandler.SendNotification,
 	)
+
+	v1.POST("/dlq/redrive", 
+		middlewares.RateLimiter(),
+		notificationHandler.RedriveDLQ,
+	)
 }

@@ -15,6 +15,7 @@ type Config struct {
 	RedisUrl                 string
 	PostgresUrl              string
 	ResendApiKey             string
+	DlqStream                string
 }
 
 var Envs []string
@@ -32,6 +33,7 @@ func Load() *Config {
 	redisURL     :=  "REDIS_URL"
 	resendApiKey :=  "RESEND_API_KEY"
 	senderDomain :=  "SENDER_DOMAIN"
+	dlqStream    :=  "DLQ_STREAM"
 
 	Envs =  append(Envs, 
 		port,
@@ -41,6 +43,7 @@ func Load() *Config {
 		redisURL,
 		resendApiKey,
 		senderDomain,
+		dlqStream,
 	)
 	for _, env := range Envs {
 		if err := Check(env); err != nil {
@@ -56,6 +59,7 @@ func Load() *Config {
 		RedisUrl: 		  os.Getenv(redisURL),
 		PostgresUrl:    os.Getenv(postgresUrl),
 		ResendApiKey: 	os.Getenv(resendApiKey),
+		DlqStream:      os.Getenv(dlqStream),
 	}
 }
 

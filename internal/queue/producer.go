@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/Habeebamoo/intunel-backend/internal/configs"
 	"github.com/Habeebamoo/intunel-backend/internal/models"
 	"github.com/redis/go-redis/v9"
 )
@@ -12,11 +13,12 @@ import (
 const NotificationStream = "notifications:stream"
 
 type Producer struct {
+	cfg    *configs.Config
 	client *redis.Client
 }
 
-func NewProducer(client *redis.Client) *Producer {
-	return &Producer{client: client}
+func NewProducer(cfg *configs.Config, client *redis.Client) *Producer {
+	return &Producer{cfg, client}
 }
 
 func (p *Producer) Publish(ctx context.Context, n models.Notification) error {
@@ -33,4 +35,34 @@ func (p *Producer) Publish(ctx context.Context, n models.Notification) error {
 			"data": payload,
 		},
 	}).Err()
+}
+
+func (p *Producer) RedriveDLQ(ctx context.Context) error {
+	dlqMessages, err := p.client.XRangeN(ctx, p.cfg.DlqStream, "-", "+", 50).Result()
+	if err != nil { 
+		return err
+	}
+
+	replayed := 0
+
+	for _, msg := range dlqMessages {
+		data, ok := msg.Values["data"].(string)
+		if !ok {
+			continue
+		}
+
+		err := p.client.XAdd(ctx, &redis.XAddArgs{
+			Stream: NotificationStream,
+			Values: map[string]interface{}{
+				"data": data,
+			},
+		}).Err()
+
+		if err == nil {
+			p.client.XDel(ctx, p.cfg.DlqStream, msg.ID)
+			replayed++
+		}
+	}
+
+	return nil
 }

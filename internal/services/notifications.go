@@ -13,6 +13,7 @@ import (
 
 type NotificationService interface {
 	SendNotification(ctx context.Context, n models.Notification) error
+	RedriveDLQ(ctx context.Context) error
 }
 
 type notificationService struct {
@@ -28,25 +29,29 @@ func NewNotificationService(producer *queue.Producer, scheduledRepo repositories
 }
 
 func (s *notificationService) SendNotification(ctx context.Context, n models.Notification) error {
-    // If date + time provided, it's a scheduled notification
-    if n.Date != "" && n.Time != "" {
-        scheduledAt, err := utils.ParseScheduledAt(n.Date, n.Time, n.Timezone)
-        if err != nil {
-            return fmt.Errorf("invalid schedule: %w", err)
-        }
+  // If date + time provided, it's a scheduled notification
+	if n.Date != "" && n.Time != "" {
+		scheduledAt, err := utils.ParseScheduledAt(n.Date, n.Time, n.Timezone)
+		if err != nil {
+				return fmt.Errorf("invalid schedule: %w", err)
+		}
 
-        scheduled := &models.ScheduledNotification{
-            Channel:     n.Channel,
-            To:          n.To,
-            Title:       n.Title,
-            Body:        n.Body,
-            ScheduledAt: scheduledAt,
-            CreatedAt:   time.Now().UTC(),
-        }
+		scheduled := &models.ScheduledNotification{
+				Channel:     n.Channel,
+				To:          n.To,
+				Title:       n.Title,
+				Body:        n.Body,
+				ScheduledAt: scheduledAt,
+				CreatedAt:   time.Now().UTC(),
+		}
 
-        return s.scheduledRepo.Create(ctx, scheduled)
-    }
+		return s.scheduledRepo.Create(ctx, scheduled)
+	}
 
-    // Otherwise publish immediately
-    return s.producer.Publish(ctx, n)
+	// Otherwise publish immediately
+	return s.producer.Publish(ctx, n)
+}
+
+func (s *notificationService) RedriveDLQ(ctx context.Context) error {
+	return s.producer.RedriveDLQ(ctx)
 }

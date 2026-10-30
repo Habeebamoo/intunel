@@ -8,6 +8,7 @@ import (
 	"math/rand/v2"
 	"time"
 
+	"github.com/Habeebamoo/intunel-backend/internal/configs"
 	"github.com/Habeebamoo/intunel-backend/internal/models"
 	"github.com/Habeebamoo/intunel-backend/internal/providers"
 	"github.com/Habeebamoo/intunel-backend/internal/queue"
@@ -16,17 +17,17 @@ import (
 
 const (
 	retryHashPrefix = "notifications:retry:"
-	dlqStream       = "notifications:stream:dead"
 	maxRetries      = 3
 )
 
 type Reaper struct {
+	cfg    *configs.Config
 	client *redis.Client
 	router *providers.Router
 }
 
-func NewReaper(client *redis.Client, router *providers.Router) *Reaper {
-	return &Reaper{client, router}
+func NewReaper(config *configs.Config, client *redis.Client, router *providers.Router) *Reaper {
+	return &Reaper{config, client, router}
 }
 
 func (r *Reaper) Start(ctx context.Context) {
@@ -180,7 +181,7 @@ func (r *Reaper) sendToDLQ(ctx context.Context, msg redis.XMessage, errReason st
 	}
 
 	r.client.XAdd(ctx, &redis.XAddArgs{
-			Stream: dlqStream,
+			Stream: r.cfg.DlqStream,
 			MaxLen: 1000,
 			Values: map[string]interface{}{
 					"data":      originalData,

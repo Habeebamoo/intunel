@@ -33,7 +33,7 @@ func main() {
 	//Init db
 	db := database.NewPostgres(cfg)
 	schedulerRepo := repositories.NewScheduledNotificationRepository(db)
-	producer := queue.NewProducer(redisClient)
+	producer := queue.NewProducer(cfg, redisClient)
 
 	// Init providers
 	router := providers.NewRouter(cfg)
@@ -41,7 +41,7 @@ func main() {
 	// Init consumer and reaper
 	scheduler := worker.NewScheduler(schedulerRepo, producer)
 	consumer := queue.NewConsumer(redisClient, router)
-	reaper := worker.NewReaper(redisClient, router)
+	reaper := worker.NewReaper(cfg, redisClient, router)
 
 	// run consumer, reaper, and scheduler in separate goroutines
 	var wg sync.WaitGroup

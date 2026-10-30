@@ -37,3 +37,14 @@ func (h *NotificationHandler) SendNotification(c *gin.Context) {
 
 	utils.SuccessResponse(c, http.StatusAccepted, "notification queued", nil)
 }
+
+func (h *NotificationHandler) RedriveDLQ(c *gin.Context) {
+  ctx := c.Request.Context()
+    
+	err := h.service.RedriveDLQ(ctx)
+	if err != nil {
+		utils.ErrorResponse(c, 500, err.Error())
+	}
+
+	utils.SuccessResponse(c, 200, "DLQ replayed", nil)
+}

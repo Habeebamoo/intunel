@@ -55,7 +55,7 @@ func New() *App {
 	schedulerRepo := repositories.NewScheduledNotificationRepository(db)
 
 	// Services init
-	producer := queue.NewProducer(redisClient)
+	producer := queue.NewProducer(cfg, redisClient)
 	notificationService := services.NewNotificationService(producer, schedulerRepo)
 
 	// Handlers init

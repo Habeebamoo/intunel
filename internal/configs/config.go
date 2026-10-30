@@ -1,6 +1,7 @@
 package configs
 
 import (
+	"fmt"
 	"log"
 	"os"
 
@@ -15,33 +16,50 @@ type Config struct {
 	ResendApiKey             string
 }
 
+var Envs []string
+
 func Load() *Config {
-	// load .env file (ignore error in prod)
 	err := godotenv.Load()
 	if err != nil {
 		log.Println("No .env file found, using system env")
 	}
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
+	port := "PORT"
+	env := "ENV"
+	postgresUrl := "POSTGRES_URL"
+	redisURL := "REDIS_URL"
+	resendApiKey := "RESEND_API_KEY"
+	senderDomain := "SENDER_DOMAIN"
 
-	env := os.Getenv("ENV")
-	if env == "" {
-		env = "development"
-	}
-
-	redisURL := os.Getenv("REDIS_URL")
-	if redisURL == "" {
-		redisURL = "redis://localhost:6379"
+	Envs =  append(Envs, 
+		port,
+		env,
+		postgresUrl,
+		redisURL,
+		resendApiKey,
+		senderDomain,
+	)
+	for _, env := range Envs {
+		if err := Check(env); err != nil {
+			log.Fatal(err)
+			os.Exit(1)
+		}
 	}
 
 	return &Config{
-		Port:                     port,
-		Env:                      env,
-		RedisUrl: 					      redisURL,
-		PostgresUrl:              os.Getenv("POSTGRES_URL"),
-		ResendApiKey: 					 	os.Getenv("RESEND_API_KEY"),
+		Port:                     os.Getenv(port),
+		Env:                      os.Getenv(env),
+		RedisUrl: 					      os.Getenv(redisURL),
+		PostgresUrl:              os.Getenv(postgresUrl),
+		ResendApiKey: 					 	os.Getenv(resendApiKey),
 	}
+}
+
+func Check(envName string) error {
+	env := os.Getenv(envName)
+	if env == "" {
+		return fmt.Errorf("%v is missing", envName)
+	}
+
+	return nil
 }

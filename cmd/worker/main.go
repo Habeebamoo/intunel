@@ -6,7 +6,9 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
+	"time"
 
 	"github.com/Habeebamoo/intunel-backend/internal/configs"
 	"github.com/Habeebamoo/intunel-backend/internal/database"
@@ -42,9 +44,23 @@ func main() {
 	reaper := worker.NewReaper(redisClient, router)
 
 	// run consumer, reaper, and scheduler in separate goroutines
-	go consumer.Start(ctx)
-	go reaper.Start(ctx)
-	go scheduler.Start(ctx)
+	var wg sync.WaitGroup
+	wg.Add(3)
+
+	go func(){
+		defer wg.Done()
+		consumer.Start(ctx)
+	}()
+
+	go func() {
+		defer wg.Done()
+		reaper.Start(ctx)
+	}()
+
+	go func() {
+		defer wg.Done()
+		scheduler.Start(ctx)
+	}()
 
 	//health check
 	go func() {
@@ -62,4 +78,21 @@ func main() {
 
 	log.Println("Worker shutting down...")
 	cancel()
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer shutdownCancel()
+
+	done := make(chan struct{})
+
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		log.Println("All workers finished in-flight jobs. Clean shutdown complete.")
+	case <-shutdownCtx.Done():
+		log.Println("Shutdown timeout (15s) reached. Forcing exit.")
+	}
 }

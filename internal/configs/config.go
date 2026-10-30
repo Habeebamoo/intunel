@@ -10,6 +10,7 @@ import (
 
 type Config struct {
 	Port                     string
+	WorkerPort               string
 	Env                      string
 	RedisUrl                 string
 	PostgresUrl              string
@@ -24,15 +25,17 @@ func Load() *Config {
 		log.Println("No .env file found, using system env")
 	}
 
-	port := "PORT"
-	env := "ENV"
-	postgresUrl := "POSTGRES_URL"
-	redisURL := "REDIS_URL"
-	resendApiKey := "RESEND_API_KEY"
-	senderDomain := "SENDER_DOMAIN"
+	port         :=  "PORT"
+	workerPort   :=  "WORKER_PORT"
+	env          :=  "ENV"
+	postgresUrl  :=  "POSTGRES_URL"
+	redisURL     :=  "REDIS_URL"
+	resendApiKey :=  "RESEND_API_KEY"
+	senderDomain :=  "SENDER_DOMAIN"
 
 	Envs =  append(Envs, 
 		port,
+		workerPort,
 		env,
 		postgresUrl,
 		redisURL,
@@ -48,6 +51,7 @@ func Load() *Config {
 
 	return &Config{
 		Port:           os.Getenv(port),
+		WorkerPort:     os.Getenv(workerPort),
 		Env:            os.Getenv(env),
 		RedisUrl: 		  os.Getenv(redisURL),
 		PostgresUrl:    os.Getenv(postgresUrl),

@@ -100,12 +100,6 @@ func (c *Consumer) process(ctx context.Context, msg redis.XMessage, workerID int
 		return
 	}
 
-	////simulate a failure for every 3rd worker to test the reaper functionality
-	// if workerID%3 == 0 {
-	// 		log.Printf("[worker-%d] simulating failure for message %s\n", workerID, msg.ID)
-	// 		return
-	// }
-
 	log.Printf("[worker-%d] successfully sent [%s] to %s\n", workerID, n.Channel, n.To)
 	c.ack(ctx, msg.ID)
 }

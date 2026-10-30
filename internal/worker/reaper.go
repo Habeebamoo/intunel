@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand/v2"
 	"time"
 
 	"github.com/Habeebamoo/intunel-backend/internal/models"
@@ -29,13 +30,14 @@ func NewReaper(client *redis.Client, router *providers.Router) *Reaper {
 }
 
 func (r *Reaper) Start(ctx context.Context) {
-	ticker := time.NewTicker(1 * time.Minute)
+	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
+
+	log.Println("Reaper: scanning for stuck messages...")
 
 	for {
 		select {
 		case <-ticker.C:
-			fmt.Println("Reaper: scanning for stuck messages...")
 			r.ClaimStuckMessages(ctx)
 
 		case <-ctx.Done():
@@ -44,29 +46,33 @@ func (r *Reaper) Start(ctx context.Context) {
 	}
 }
 
+func calculateJitterBackoff(retryCount int) time.Duration {
+	base := 1 * time.Minute
+	maxBackoff := 15 * time.Minute
+
+	// Exponential backoff: 1m, 2m, 4m, 8m...
+	backoff := base * time.Duration(1<<retryCount)
+	if backoff > maxBackoff || backoff <= 0 {
+		backoff = maxBackoff
+	}
+
+	return time.Duration(rand.Int64N(int64(backoff)))
+}
+
 func (r *Reaper) ClaimStuckMessages(ctx context.Context) {
 	messages, err := r.FindPendingMessages(ctx)
 	if err != nil {
 			fmt.Printf("Reaper: error finding pending messages: %v\n", err)
 			return
 	}
-
+	
 	for _, msg := range messages {
 		count := r.getRetryCount(ctx, msg.ID)
 
-		switch count {
-		case 0:
-			r.claimAndProcess(ctx, msg.ID, 1*time.Minute)
-		case 1:
-			if msg.Idle >= 1*time.Minute {
-				r.claimAndProcess(ctx, msg.ID, 1*time.Minute)
-			}
-		case 2:
-			if msg.Idle >= 5*time.Minute {
-				r.claimAndProcess(ctx, msg.ID, 5*time.Minute)
-			}
-		default:
-			r.claimAndProcess(ctx, msg.ID, 1*time.Minute)
+		requiredIdle := calculateJitterBackoff(count)
+
+		if msg.Idle >= requiredIdle {
+			r.claimAndProcess(ctx, msg.ID, requiredIdle)
 		}
 	}
 }
@@ -175,6 +181,7 @@ func (r *Reaper) sendToDLQ(ctx context.Context, msg redis.XMessage, errReason st
 
 	r.client.XAdd(ctx, &redis.XAddArgs{
 			Stream: dlqStream,
+			MaxLen: 1000,
 			Values: map[string]interface{}{
 					"data":      originalData,
 					"error":     errReason,

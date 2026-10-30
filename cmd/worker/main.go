@@ -68,7 +68,7 @@ func main() {
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte("OK"))
 		})
-		http.ListenAndServe(":"+cfg.Port, nil)
+		http.ListenAndServe(":"+cfg.WorkerPort, nil)
 	}()
 
 	// Graceful shutdown

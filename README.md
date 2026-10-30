@@ -59,7 +59,7 @@ flowchart TD
 - Unacknowledged or stalled messages remain in the Redis **Pending Entries List (PEL)**.
 
 ### 3. Anti-Thundering Herd Retry Reaper (Full Jitter)
-- Stalled messages in the PEL are swept every $5\text{s}$ by a background `Reaper` process.
+- Stalled messages in the PEL are swept every 5s by a background `Reaper` process.
 - Retries calculate dynamic delays using **Exponential Backoff + Full Jitter**:
   $$\text{RequiredIdle} = \text{random}\left(0, \, \min\left(\text{MaxBackoff}, \, \text{Base} \times 2^{\text{retry\_count}}\right)\right)$$
 - Uniform randomizing prevents synchronized retry waves from overloading downstream APIs during recovery.

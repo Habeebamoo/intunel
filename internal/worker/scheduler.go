@@ -59,14 +59,15 @@ func (s *Scheduler) publishDue(ctx context.Context) {
 		}
 
 		if err := s.producer.Publish(ctx, notification); err != nil {
-			log.Printf("Scheduler: failed to publish notification %s: %v\n", n.UserID, err)
+			log.Printf("Scheduler: failed to publish notification %s: %v\n", n.Id, err)
 			continue
 		}
 
-		if err := s.repo.MarkQueued(ctx, n.UserID.String()); err != nil {
-			log.Printf("Scheduler: failed to mark notification %s as queued: %v\n", n.UserID, err)
+		if err := s.repo.MarkQueued(ctx, n.Id.String()); err != nil {
+			log.Printf("Scheduler: failed to mark notification %s as queued: %v\n", n.Id, err)
+			continue
 		}
 
-		log.Printf("Scheduler: published notification %s → [%s] %s\n", n.UserID, n.Channel, n.To)
+		log.Printf("Scheduler: published notification %s → [%s] %s\n", n.Id, n.Channel, n.To)
 	}
 }

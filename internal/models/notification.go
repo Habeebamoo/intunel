@@ -8,7 +8,6 @@ import (
 )
 
 type Notification struct {
-	UserID    string  `json:"user_id"`
 	Channel   string  `json:"channel"`
 	To        string  `json:"to"`
 	Title     string  `json:"title"`
@@ -19,7 +18,7 @@ type Notification struct {
 }
 
 type ScheduledNotification struct {
-	UserID       uuid.UUID   `gorm:"type:uuid;primaryKey" json:"user_id"`
+	Id           uuid.UUID   `gorm:"type:uuid;primaryKey" json:"id"`
 	Channel      string      `gorm:"not null" json:"channel"`
 	To           string      `gorm:"column:to_address;not null" json:"to"`
 	Title        string      `gorm:"default:null" json:"title"`
@@ -31,6 +30,6 @@ type ScheduledNotification struct {
 }
 
 func (s *ScheduledNotification) BeforeCreate(tx *gorm.DB) error {
-	s.UserID = uuid.New()
+	s.Id = uuid.New()
 	return nil
 }

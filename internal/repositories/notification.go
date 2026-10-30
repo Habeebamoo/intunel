@@ -40,7 +40,7 @@ func (r *scheduledNotificationRepository) MarkQueued(ctx context.Context, id str
 	now := time.Now().UTC()
 	return r.db.WithContext(ctx).
 		Model(&models.ScheduledNotification{}).
-		Where("user_id = ?", id).
+		Where("id = ?", id).
 		Updates(map[string]interface{}{
 			"status":       "queued",
 			"published_at": now,

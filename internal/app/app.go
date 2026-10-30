@@ -17,7 +17,6 @@ import (
 	"github.com/Habeebamoo/intunel-backend/internal/services"
 	"github.com/Habeebamoo/intunel-backend/internal/store"
 	"github.com/gin-gonic/gin"
-	"github.com/redis/go-redis/v9"
 )
 
 type App struct {
@@ -29,22 +28,14 @@ type App struct {
 func New() *App {
 	cfg := configs.Load()
 
-	// Redis init
-	redisOpts, err := redis.ParseURL(cfg.RedisUrl)
-	if err != nil {
-		log.Fatalf("invalid redis URL: %v", err)
-	}
-	redisClient := redis.NewClient(redisOpts)
-
-	// Ping Redis
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := redisClient.Ping(ctx).Err(); err != nil {
-		log.Fatalf("could not connect to redis: %v", err)
+	redisClient, err := configs.InitRedis(cfg, ctx)
+	if err != nil {
+		log.Fatal("couldn't connect to redis: ", err)
+		os.Exit(1)
 	}
-
-	log.Println("Redis connected")
 
 	// Postgres init
 	db := database.NewPostgres(cfg)

@@ -47,11 +47,11 @@ func Load() *Config {
 	}
 
 	return &Config{
-		Port:                     os.Getenv(port),
-		Env:                      os.Getenv(env),
-		RedisUrl: 					      os.Getenv(redisURL),
-		PostgresUrl:              os.Getenv(postgresUrl),
-		ResendApiKey: 					 	os.Getenv(resendApiKey),
+		Port:           os.Getenv(port),
+		Env:            os.Getenv(env),
+		RedisUrl: 		  os.Getenv(redisURL),
+		PostgresUrl:    os.Getenv(postgresUrl),
+		ResendApiKey: 	os.Getenv(resendApiKey),
 	}
 }
 

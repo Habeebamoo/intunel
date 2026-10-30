@@ -14,27 +14,19 @@ import (
 	"github.com/Habeebamoo/intunel-backend/internal/queue"
 	"github.com/Habeebamoo/intunel-backend/internal/repositories"
 	"github.com/Habeebamoo/intunel-backend/internal/worker"
-
-	"github.com/redis/go-redis/v9"
 )
 
 func main() {
 	cfg := configs.Load()
 
-	redisOpts, err := redis.ParseURL(cfg.RedisUrl)
-	if err != nil {
-		log.Fatalf("invalid redis URL: %v", err)
-	}
-	redisClient := redis.NewClient(redisOpts)
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Ping Redis
-	if err := redisClient.Ping(ctx).Err(); err != nil {
-		log.Fatalf("could not connect to redis: %v", err)
+	redisClient, err := configs.InitRedis(cfg, ctx)
+	if err != nil {
+		log.Fatal("couldn't connect to redis: ", err)
+		os.Exit(1)
 	}
-	log.Println("Worker: Redis connected")
 
 	//Init db
 	db := database.NewPostgres(cfg)

@@ -1,19 +1,8 @@
 # Intunel
 
-An event-driven notification service built with **Go, Redis Streams, and PostgreSQL**.
+A high-throughput, fault-tolerant notification scheduling and dispatch system written in Go, powered by PostgreSQL for persistent state management and Redis Streams for asynchronous event processing.
 
-Intunel accepts notification requests through an HTTP API, queues them in Redis Streams, and processes them asynchronously using Redis Consumer Groups. Concurrency is controlled with a semaphore, while PostgreSQL handles scheduled notifications.
-
-## Architecture
-
-* **API** — Validates requests and publishes immediate notifications to Redis.
-* **Redis Streams** — Message broker with Consumer Groups and reliable message processing.
-* **Worker** — Processes notifications concurrently with a controlled goroutine limit.
-* **Scheduler** — Publishes scheduled notifications when they become due.
-* **PostgreSQL** — Durable storage for scheduled notifications.
-* **Retry Reaper** — Recovers failed messages from the Redis Pending Entries List.
-* **DLQ** — Stores messages that exhaust their retry attempts.
-* **Resend** — Current email delivery provider.
+Designed to guarantee at-least-once delivery, Intunel withstands worker crashes, network partitions, third-party rate limits ($429$), and thundering herd retry spikes using distributed concurrency, exponential backoff with full jitter, and a Dead Letter Queue (DLQ) replay engine.
 
 ### Processing Pipeline
 
@@ -59,61 +48,73 @@ flowchart TD
     RetryCount -- ">= 3" --> DLQ
 ```
 
-## Key Features
+## 🚀 Key Architectural Features
 
-### Asynchronous Notifications
+### 1. Concurrency-Bounded Worker Pool with Graceful Drain
+- **Semaphore Reservation:** Consumers acquire a semaphore token *before* executing `XReadGroup` calls, preventing memory bloat from fetching unprocessable stream items.
+- **Graceful Shutdown Protocol:** Traps `SIGINT`/`SIGTERM` OS signals, immediately stops stream ingestion, and utilizes a `sync.WaitGroup` with an independent `15s` timeout context to drain active in-flight HTTP requests without aborting ongoing provider calls.
 
-Immediate notifications are published to Redis Streams instead of being sent directly from the API.
+### 2. At-Least-Once Delivery & PEL Recovery
+- All consumer reads are unacknowledged (`XACK`) until downstream providers return an explicit success status.
+- Unacknowledged or stalled messages remain in the Redis **Pending Entries List (PEL)**.
 
-### Controlled Concurrency
+### 3. Anti-Thundering Herd Retry Reaper (Full Jitter)
+- Stalled messages in the PEL are swept every $5\text{s}$ by a background `Reaper` process.
+- Retries calculate dynamic delays using **Exponential Backoff + Full Jitter**:
+  $$\text{RequiredIdle} = \text{random}\left(0, \, \min\left(\text{MaxBackoff}, \, \text{Base} \times 2^{\text{retry\_count}}\right)\right)$$
+- Uniform randomizing prevents synchronized retry waves from overloading downstream APIs during recovery.
 
-Each notification runs in a goroutine, while a semaphore limits concurrent processing to **10 goroutines**.
+### 4. Fast-Fail DLQ & Replay Engine
+- Messages failing exceeding $3$ consecutive attempts are automatically moved to `notifications:stream:dead`.
+- Includes an administrative HTTP endpoint (`POST /api/v1/dlq/redrive`) to inspect and safely re-inject dead letters back into the main processing queue after upstream issues are resolved.
 
-### Retry & Dead Letter Queue
+---
 
-Failed messages remain in the Redis Pending Entries List and are recovered by the Reaper.
+## ⚖️ Design Trade-offs
 
-Retry schedule:
+| Engineering Choice | Selected Option | Alternative Considered | Trade-off Justification |
+| :--- | :--- | :--- | :--- |
+| **Message Queue** | **Redis Streams** | Apache Kafka / RabbitMQ | Lower operational complexity for lightweight Go microservices while providing Consumer Groups, PEL, and explicit `XACK` semantics. |
+| **Scheduling Engine** | **Single-Instance Poll** | Distributed Cron / `PG_NOTIFY` | Single-instance tick polling simplifies deployment and prevents cross-replica race conditions without requiring distributed locking (e.g., Redlock). |
+| **Retry Backoff** | **Query-Time Full Jitter** | Fixed-Interval Retry | Query-time randomized threshold eliminates thundering herd spikes during outage recoveries without needing persistent state mutations. |
+| **DLQ Operations** | **cURL Replay API** | Web GUI / Dashboard | Operational replay capability exposes programmatic control via CLI/HTTP tools without incurring frontend overhead for backend demo projects. |
 
-* Retry 1 — 1 minute
-* Retry 2 — 5 minutes
-* Retry 3 — Dead Letter Queue
+---
 
-### Scheduled Notifications
+## 🛠️ Tech Stack & Dependencies
 
-Clients provide a date, time, and IANA timezone such as `Africa/Lagos`. The API converts the time to UTC and stores the job in PostgreSQL.
+* **Language:** Go $1.22+$
+* **Database:** PostgreSQL $15+$
+* **Cache / Broker:** Redis $7+$ (Streams & Consumer Groups)
+* **Email Provider:** Resend SDK / Custom Router Interface
 
-The Scheduler checks for due jobs every 60 seconds and publishes them to Redis.
+## 🚦 Getting Started & Local Development
 
-### Idempotency
+### 1. Prerequisites
+* Docker & Docker Compose
+* PostgreSQL
+* Redis
+* Go $1.22+$
 
-Every notification request requires an `Idempotency-Key`.
+### 2. Environment Configuration
+Create a `.env` file in the project root:
+```env
+PORT=8080
+WORKER_PORT=8081
+ENV=development
+POSTGRES_URL=postgres://user:password@localhost:port/dbname
+REDIS_URL=redis://localhost:port
+RESEND_API_KEY=your_resend_key
+SENDER_DOMAIN=username@yourdomain.com
+DLQ_STREAM=notifications:stream:dead
+```
 
-Keys are stored in Redis for **24 hours**, preventing duplicate notifications when clients retry the same request.
-
-## Running Locally
-
-### Docker
-
+#### 3. Build and Run
 ```bash
-docker compose up --build
+docker-compose up --build
 ```
 
-or
-
-```bash
-docker-compose up
-```
-
-<br><br>
-
-API:
-
-```text
-http://localhost:8080
-```
-
-### Without Docker
+#### 4. Without Docker
 
 Start Redis, then run the API and worker separately:
 
@@ -122,7 +123,7 @@ go run ./cmd/api
 go run ./cmd/worker
 ```
 
-### Immediate Notification
+#### 5. Immediate Notification
 
 ```http
 POST /api/v1/notify
@@ -139,7 +140,7 @@ Idempotency-Key: 550e8400-e29b-41d4-a716-446655440000
 }
 ```
 
-### Scheduled Notification
+#### 6. Scheduled Notification
 
 ```json
 {
@@ -152,19 +153,3 @@ Idempotency-Key: 550e8400-e29b-41d4-a716-446655440000
   "timezone": "Africa/Lagos"
 }
 ```
-
-Scheduled notifications are converted to UTC, stored in PostgreSQL, and published to Redis when their scheduled time is reached.
-
-## Technologies
-
-* Go
-* Redis Streams
-* Redis Consumer Groups
-* PostgreSQL
-* GORM
-* Goroutines & Channels
-* Semaphore Pattern
-* Resend
-* Docker
-* Idempotency
-* Dead Letter Queue
